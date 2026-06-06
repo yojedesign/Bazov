@@ -1,17 +1,56 @@
 """
 Database session management
+
+For development without async PostgreSQL drivers (asyncpg/psycopg2-binary),
+this module falls back to SQLite in-memory database.
 """
+
+import os
+from typing import AsyncGenerator, Optional
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import event
-from typing import AsyncGenerator, Optional
 
 from app.core.config import settings
 
+
+def get_database_url():
+    """
+    Get the appropriate database URL.
+    Falls back to SQLite in-memory if PostgreSQL drivers are not available
+    or if DATABASE_URL is not set.
+    """
+    # Check if we should use SQLite fallback
+    use_sqlite = False
+    
+    # Check if DATABASE_URL is set to PostgreSQL
+    db_url = str(settings.DATABASE_URL)
+    
+    # If DEBUG mode and no explicit PostgreSQL URL, use SQLite
+    if settings.DEBUG and not db_url.startswith("postgresql"):
+        use_sqlite = True
+    
+    # Try to import asyncpg to check if it's available
+    try:
+        import asyncpg
+    except ImportError:
+        # asyncpg not available, check if we're trying to use PostgreSQL
+        if db_url.startswith("postgresql"):
+            print("WARNING: asyncpg not installed. Falling back to SQLite for development.")
+            print("To use PostgreSQL, install asyncpg: pip install asyncpg")
+            use_sqlite = True
+    
+    if use_sqlite:
+        # Use in-memory SQLite for development
+        return "sqlite+aiosqlite:///:memory:"
+    
+    return db_url
+
+
 # Create async engine
 async_engine = create_async_engine(
-    str(settings.DATABASE_URL),
+    get_database_url(),
     echo=settings.DEBUG,
     future=True,
 )
@@ -74,7 +113,7 @@ async def get_sync_db():
     from sqlalchemy.orm import Session
     
     sync_engine = create_async_engine(
-        str(settings.DATABASE_URL),
+        get_database_url(),
         echo=settings.DEBUG,
     ).sync_engine
     

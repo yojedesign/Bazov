@@ -3,7 +3,7 @@ Relationship endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from app.core.dependencies import get_current_user, get_optional_user, get_db, AsyncSession
 from app.db.models.user import User as UserDB

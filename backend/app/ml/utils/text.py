@@ -4,7 +4,7 @@ Text preprocessing utilities
 
 import re
 import string
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)

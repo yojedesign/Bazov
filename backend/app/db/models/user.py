@@ -2,7 +2,7 @@
 User database model
 """
 
-from sqlalchemy import Column, String, Text, DateTime, func
+from sqlalchemy import Column, String, Text, DateTime, Boolean, func
 from sqlalchemy.orm import relationship
 from typing import List, Optional
 
@@ -41,7 +41,3 @@ class User(BaseModel):
     
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, clerk_id={self.clerk_id})>"
-
-
-# Import Boolean after class definition to avoid circular imports
-from sqlalchemy import Boolean

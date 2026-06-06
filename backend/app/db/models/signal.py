@@ -2,7 +2,7 @@
 Signal database model
 """
 
-from sqlalchemy import Column, String, Text, DateTime, func, ForeignKey, Float
+from sqlalchemy import Column, String, Text, DateTime, Boolean, func, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from typing import Optional
 from datetime import datetime

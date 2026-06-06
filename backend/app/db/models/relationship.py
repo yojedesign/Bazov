@@ -2,7 +2,7 @@
 Relationship database model
 """
 
-from sqlalchemy import Column, String, Date, DateTime, func, ForeignKey, Boolean
+from sqlalchemy import Column, String, Date, DateTime, Text, Integer, func, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from typing import Optional
 
