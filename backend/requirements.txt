@@ -1,60 +1,65 @@
 # Core
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-dotenv==1.0.0
+# Using version ranges compatible with Python 3.12+ to avoid compilation issues
+fastapi>=0.109,<0.112
+uvicorn[standard]>=0.27,<0.30
+python-dotenv>=1.0,<2.0
 
 # Database
-sqlalchemy==2.0.25
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
-alembic==1.13.1
+# Using SQLAlchemy with async support
+# asyncpg and psycopg2-binary are commented out for dev environment compatibility
+# These compiled drivers require specific Python versions and can cause install issues
+# For production, uncomment the appropriate driver for your database:
+# - asyncpg: for async PostgreSQL (recommended for production)
+# - psycopg2-binary: for sync/async PostgreSQL
+# - psycopg[c]: pure-Python alternative (install with: pip install psycopg[c])
+sqlalchemy>=2.0,<2.1
+# asyncpg>=0.29,<0.30
+# psycopg2-binary>=2.9,<3.0
+alembic>=1.13,<1.15
+
+# SQLite async driver (for development fallback)
+aiosqlite>=0.19,<0.20
 
 # Auth
-clerk-python==0.1.0
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+clerk-python>=0.1,<0.2
+python-jose[cryptography]>=3.3,<4.0
+passlib[bcrypt]>=1.7,<2.0
 
 # Pydantic
-pydantic==2.5.3
-pydantic-settings==2.1.0
-email-validator==2.1.0
+pydantic>=2.5,<2.7
+pydantic-settings>=2.1,<2.2
+email-validator>=2.1,<3.0
 
 # HTTP
-httpx==0.26.0
-python-multipart==0.0.6
+httpx>=0.26,<0.28
+python-multipart>=0.0.6,<0.1
 
 # Async
-anyio==4.3.0
-
-# CORS
-python-multipart==0.0.6
-
-# Validation
-email-validator==2.1.0
+anyio>=4.3,<5.0
 
 # ML & NLP
-numpy==1.26.2
-scikit-learn==1.4.0
-joblib==1.3.2
+numpy>=1.26,<2.0
+scikit-learn>=1.4,<1.5
+joblib>=1.3,<2.0
 
 # Text processing
-nltk==3.8.1
-textblob==0.17.1
+nltk>=3.8,<4.0
+textblob>=0.17,<0.18
 
 # Development
-pytest==7.4.4
-pytest-asyncio==0.23.3
-pytest-cov==4.1.0
-black==24.1.1
-isort==5.13.2
-flake8==6.1.0
+pytest>=7.4,<8.0
+pytest-asyncio>=0.23,<0.25
+pytest-cov>=4.1,<5.0
+black>=24.1,<25.0
+isort>=5.13,<6.0
+flake8>=6.1,<7.0
 
 # Type hints
-mypy==1.8.0
-sqlalchemy2-stubs==0.1.0
+mypy>=1.8,<2.0
+sqlalchemy2-stubs>=0.1,<0.2
 
 # Optional: For production ML (uncomment when needed)
-# torch==2.2.0
-# transformers==4.38.2
-# spacy==3.7.2
-# sentence-transformers==2.2.2
+# torch>=2.2,<3.0
+# transformers>=4.38,<5.0
+# spacy>=3.7,<4.0
+# sentence-transformers>=2.2,<3.0

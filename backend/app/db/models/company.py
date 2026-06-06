@@ -2,7 +2,7 @@
 Company database model
 """
 
-from sqlalchemy import Column, String, Text, Integer, Date, DateTime, func
+from sqlalchemy import Column, String, Text, Integer, Date, DateTime, Boolean, func
 from sqlalchemy.orm import relationship
 from typing import List, Optional
 

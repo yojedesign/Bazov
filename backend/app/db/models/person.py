@@ -2,7 +2,7 @@
 Person database model
 """
 
-from sqlalchemy import Column, String, Text, Date, DateTime, func, ForeignKey
+from sqlalchemy import Column, String, Text, Date, DateTime, Boolean, func, ForeignKey
 from sqlalchemy.orm import relationship
 from typing import List, Optional
 
