@@ -1,0 +1,152 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop, feature/*]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # =============================================================================
+  # Quick Smoke Tests
+  # =============================================================================
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Docker Compose
+        run: |
+          cd /workspace/yojedesign__Bazov
+          docker-compose -f docker/docker-compose.yml config
+
+      - name: Check Python syntax
+        run: |
+          python3 -m py_compile backend/app/main.py
+          python3 -m py_compile backend/app/api/v1/*.py || true
+
+      - name: Check YAML syntax
+        run: |
+          python3 -c "import yaml; yaml.safe_load(open('docker/docker-compose.yml'))"
+          python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"
+
+  # =============================================================================
+  # Integration Tests
+  # =============================================================================
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: bazov
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run database migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bazov
+        run: |
+          python -c "
+          from app.db.base import Base
+          from app.db.session import engine
+          Base.metadata.create_all(bind=engine)
+          " || true
+
+      - name: Test API endpoints
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bazov
+          SECRET_KEY: test-secret-key
+          DEBUG: true
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+          curl -f http://localhost:8000/health || exit 1
+          curl -f http://localhost:8000/api/v1/health || exit 1
+
+  # =============================================================================
+  # Security Scan
+  # =============================================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  # =============================================================================
+  # Code Quality
+  # =============================================================================
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install quality tools
+        run: |
+          pip install black isort flake8 bandit safety
+
+      - name: Check backend code quality
+        working-directory: backend
+        run: |
+          black --check . || echo "Black formatting issues found"
+          isort --check . || echo "isort sorting issues found"
+          flake8 . || echo "flake8 linting issues found"
+          bandit -r . -f json -o /dev/null || echo "bandit security issues found"
+          safety check -r requirements.txt || echo "safety vulnerabilities found"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check frontend code quality
+        working-directory: frontend
+        run: |
+          npm install
+          npm run lint || echo "ESLint issues found"

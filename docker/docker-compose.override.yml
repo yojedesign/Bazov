@@ -1,0 +1,51 @@
+version: '3.8'
+
+# Development overrides for docker-compose.yml
+# This file is for local development and is automatically loaded by docker-compose
+
+services:
+  # =============================================================================
+  # Backend - Development mode
+  # =============================================================================
+  backend:
+    environment:
+      - DEBUG=true
+    volumes:
+      - ../backend:/app
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+  # =============================================================================
+  # Frontend - Development mode
+  # =============================================================================
+  frontend:
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  # =============================================================================
+  # Crawlers - Development mode
+  # =============================================================================
+  crawlers:
+    volumes:
+      - ../crawlers:/app
+    # Keep container running for development
+    command: tail -f /dev/null
+
+  # =============================================================================
+  # Signal Processor - Development mode
+  # =============================================================================
+  signal-processor:
+    volumes:
+      - ../mcps/signal_processor:/app
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+  # =============================================================================
+  # Relationship Mapper - Development mode
+  # =============================================================================
+  relationship-mapper:
+    volumes:
+      - ../mcps/relationship_mapper:/app
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

@@ -1,0 +1,191 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Database - PostgreSQL
+  # =============================================================================
+  db:
+    image: postgres:15-alpine
+    container_name: bazov-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bazov
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bazov"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bazov-network
+
+  # =============================================================================
+  # Database Admin - pgAdmin (optional)
+  # =============================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bazov-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@bazov.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - bazov-network
+
+  # =============================================================================
+  # Backend - FastAPI
+  # =============================================================================
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: bazov-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/bazov
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-sk_test_mock}
+      - CLERK_WEBHOOK_SECRET=${CLERK_WEBHOOK_SECRET:-whsec_mock}
+      - SECRET_KEY=${SECRET_KEY:-mock-secret-key}
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
+      - DEBUG=${DEBUG:-true}
+    volumes:
+      - ../backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - bazov-network
+
+  # =============================================================================
+  # Frontend - Next.js
+  # =============================================================================
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        - NODE_ENV=development
+    container_name: bazov-frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY:-pk_test_mock}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-sk_test_mock}
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NODE_ENV=development
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - bazov-network
+
+  # =============================================================================
+  # Crawlers - Scrapy + Playwright
+  # =============================================================================
+  crawlers:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.crawlers
+    container_name: bazov-crawlers
+    restart: unless-stopped
+    environment:
+      - LINKEDIN_USERNAME=${LINKEDIN_USERNAME:-}
+      - LINKEDIN_PASSWORD=${LINKEDIN_PASSWORD:-}
+      - PROXY_URL=${PROXY_URL:-}
+      - API_URL=http://backend:8000
+    volumes:
+      - ../crawlers:/app
+    depends_on:
+      - backend
+    networks:
+      - bazov-network
+    # Override command in docker-compose.override.yml for development
+    command: tail -f /dev/null
+
+  # =============================================================================
+  # Signal Processor MCP
+  # =============================================================================
+  signal-processor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: bazov-signal-processor
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/bazov
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ../mcps/signal_processor:/app
+    ports:
+      - "8002:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bazov-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  # =============================================================================
+  # Relationship Mapper MCP
+  # =============================================================================
+  relationship-mapper:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: bazov-relationship-mapper
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/bazov
+    volumes:
+      - ../mcps/relationship_mapper:/app
+    ports:
+      - "8003:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bazov-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  bazov-network:
+    driver: bridge
